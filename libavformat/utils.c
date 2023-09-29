@@ -1541,11 +1541,26 @@ static int read_frame_internal(AVFormatContext *s, AVPacket *pkt)
     int ret, i, got_packet = 0;
     AVDictionary *metadata = NULL;
 
+    // RTP Sender reports
+    uint32_t timestamp = 0;
+    uint64_t last_rtcp_ntp_time = 0;
+    uint32_t last_rtcp_timestamp = 0;
+    uint16_t seq = 0;
+    bool synced = false;
+
     while (!got_packet && !s->internal->parse_queue) {
         AVStream *st;
 
         /* read next packet */
         ret = ff_read_packet(s, pkt);
+
+        /* copy over the RTP time stamp */
+        timestamp = pkt->timestamp;
+        last_rtcp_ntp_time = pkt->last_rtcp_ntp_time;
+        last_rtcp_timestamp = pkt->last_rtcp_timestamp;
+        seq = pkt->seq;
+        synced = pkt->synced;
+
         if (ret < 0) {
             if (ret == AVERROR(EAGAIN))
                 return ret;
@@ -1734,6 +1749,12 @@ FF_ENABLE_DEPRECATION_WARNINGS
      * propagate this back to the user. */
     if (ret == AVERROR_EOF && s->pb && s->pb->error < 0 && s->pb->error != AVERROR(EAGAIN))
         ret = s->pb->error;
+
+    pkt->timestamp = timestamp;
+    pkt->last_rtcp_ntp_time = last_rtcp_ntp_time;
+    pkt->last_rtcp_timestamp = last_rtcp_timestamp;
+    pkt->seq = seq;
+    pkt->synced = synced;
 
     return ret;
 }

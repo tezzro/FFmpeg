@@ -19,6 +19,8 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
+#include <stdbool.h>
+
 #include "libavutil/mathematics.h"
 #include "libavutil/avstring.h"
 #include "libavutil/intreadwrite.h"
@@ -171,6 +173,25 @@ const RTPDynamicProtocolHandler *ff_rtp_handler_find_by_id(int id,
             return handler;
     }
     return NULL;
+}
+
+static void set_pkt_sender_report(RTPDemuxContext *s, AVPacket *pkt) {
+    pkt->seq = 0;
+    pkt->timestamp = 0;
+    pkt->synced = false;
+
+    /* export private data (timestamps) into AVPacket */
+    if (s->last_rtcp_ntp_time != AV_NOPTS_VALUE && s->last_rtcp_timestamp) {
+        pkt->synced = true;
+        pkt->last_rtcp_ntp_time = s->last_rtcp_ntp_time;
+        pkt->last_rtcp_timestamp = s->last_rtcp_timestamp;
+    } else {
+        pkt->last_rtcp_ntp_time = 0;
+        pkt->last_rtcp_timestamp = 0;
+    }
+
+    pkt->seq = s->seq;
+    pkt->timestamp = s->timestamp;
 }
 
 static int rtcp_parse_packet(RTPDemuxContext *s, const unsigned char *buf,
@@ -657,8 +678,8 @@ static void finalize_packet(RTPDemuxContext *s, AVPacket *pkt, uint32_t timestam
     else
         s->unwrapped_timestamp += (int32_t)(timestamp - s->timestamp);
     s->timestamp = timestamp;
-    pkt->pts     = s->unwrapped_timestamp + s->range_start_offset -
-                   s->base_timestamp;
+    pkt->pts =
+        s->unwrapped_timestamp + s->range_start_offset - s->base_timestamp;
 }
 
 static int rtp_parse_packet_internal(RTPDemuxContext *s, AVPacket *pkt,
@@ -740,6 +761,7 @@ static int rtp_parse_packet_internal(RTPDemuxContext *s, AVPacket *pkt,
 
     // now perform timestamp things....
     finalize_packet(s, pkt, timestamp);
+    set_pkt_sender_report(s, pkt);
 
     return rv;
 }
@@ -849,7 +871,9 @@ static int rtp_parse_one_packet(RTPDemuxContext *s, AVPacket *pkt,
     if ((buf[0] & 0xc0) != (RTP_VERSION << 6))
         return -1;
     if (RTP_PT_IS_RTCP(buf[1])) {
-        return rtcp_parse_packet(s, buf, len);
+        const int ret = rtcp_parse_packet(s, buf, len);
+        set_pkt_sender_report(s, pkt);
+        return ret;
     }
 
     if (s->st) {

@@ -23,6 +23,7 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include <stdbool.h>
 
 #include "libavutil/attributes.h"
 #include "libavutil/buffer.h"
@@ -387,6 +388,13 @@ typedef struct AVPacket {
     int64_t duration;
 
     int64_t pos;                            ///< byte position in stream, -1 if unknown
+
+    // Exposing sender report private data for use by applications
+    uint32_t timestamp;
+    uint64_t last_rtcp_ntp_time;
+    uint32_t last_rtcp_timestamp;
+    uint16_t seq;
+    bool synced;
 
 #if FF_API_CONVERGENCE_DURATION
     /**

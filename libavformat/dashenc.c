@@ -199,6 +199,7 @@ typedef struct DASHContext {
     AVRational min_playback_rate;
     AVRational max_playback_rate;
     int64_t update_period;
+    int64_t segment_start_number;
 } DASHContext;
 
 static struct codec_string {
@@ -507,7 +508,7 @@ static void get_hls_playlist_name(char *playlist_name, int string_size,
 static void get_start_index_number(OutputStream *os, DASHContext *c,
                                    int *start_index, int *start_number) {
     *start_index = 0;
-    *start_number = 1;
+    *start_number = c->segment_start_number;
     if (c->window_size) {
         *start_index  = FFMAX(os->nb_segments   - c->window_size, 0);
         *start_number = FFMAX(os->segment_index - c->window_size, 1);
@@ -1699,7 +1700,7 @@ static int dash_init(AVFormatContext *s)
         os->first_pts = AV_NOPTS_VALUE;
         os->max_pts = AV_NOPTS_VALUE;
         os->last_dts = AV_NOPTS_VALUE;
-        os->segment_index = 1;
+        os->segment_index = c->segment_start_number;
 
         if (s->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO)
             c->nr_of_streams_to_flush++;
@@ -2385,6 +2386,7 @@ static const AVOption options[] = {
     { "min_playback_rate", "Set desired minimum playback rate", OFFSET(min_playback_rate), AV_OPT_TYPE_RATIONAL, { .dbl = 1.0 }, 0.5, 1.5, E },
     { "max_playback_rate", "Set desired maximum playback rate", OFFSET(max_playback_rate), AV_OPT_TYPE_RATIONAL, { .dbl = 1.0 }, 0.5, 1.5, E },
     { "update_period", "Set the mpd update interval", OFFSET(update_period), AV_OPT_TYPE_INT64, {.i64 = 0}, 0, INT64_MAX, E},
+    { "segment_start_number", "Starting number of segment", OFFSET(segment_start_number), AV_OPT_TYPE_INT64, {.i64 = 1}, 0, INT64_MAX, E},
     { NULL },
 };
 
