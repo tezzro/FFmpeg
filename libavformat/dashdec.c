@@ -157,6 +157,7 @@ typedef struct DASHContext {
     int is_init_section_common_audio;
     int is_init_section_common_subtitle;
 
+    bool header_was_read;
 } DASHContext;
 
 static int ishttp(char *url)
@@ -288,7 +289,7 @@ static int64_t calc_next_seg_no_from_timelines(struct representation *pls, int64
 {
     int64_t i = 0;
     int64_t j = 0;
-    int64_t num = 0;
+    int64_t num = pls->start_number;
     int64_t start_time = 0;
 
     for (i = 0; i < pls->n_timelines; i++) {
@@ -1269,6 +1270,8 @@ static int parse_manifest(AVFormatContext *s, const char *url, AVIOContext *in)
         }
         if (!av_strcasecmp(val, "dynamic"))
             c->is_live = 1;
+        else
+            c->is_live = 0;
         xmlFree(val);
 
         attr = node->properties;
@@ -1379,7 +1382,7 @@ static int64_t calc_cur_seg_no(AVFormatContext *s, struct representation *pls)
     int64_t num = 0;
     int64_t start_time_offset = 0;
 
-    if (c->is_live) {
+    if (c->is_live && c->header_was_read) {
         if (pls->n_fragments) {
             av_log(s, AV_LOG_TRACE, "in n_fragments mode\n");
             num = pls->first_seq_no;
@@ -1391,7 +1394,7 @@ static int64_t calc_cur_seg_no(AVFormatContext *s, struct representation *pls)
                 num = pls->first_seq_no;
             else
                 num += pls->first_seq_no;
-        } else if (pls->fragment_duration){
+        } else if (pls->fragment_duration) {
             av_log(s, AV_LOG_TRACE, "in fragment_duration mode fragment_timescale = %"PRId64", presentation_timeoffset = %"PRId64"\n", pls->fragment_timescale, pls->presentation_timeoffset);
             if (pls->presentation_timeoffset) {
                 num = pls->first_seq_no + (((get_current_time_in_sec() - c->availability_start_time) * pls->fragment_timescale)-pls->presentation_timeoffset) / pls->fragment_duration - c->min_buffer_time;
@@ -1611,7 +1614,7 @@ static struct fragment *get_current_fragment(struct representation *pls)
             break;
         }
     }
-    if (c->is_live) {
+    if (c->is_live && (pls->cur_seq_no > pls->last_seq_no)) {
         min_seq_no = calc_min_seg_no(pls->parent, pls);
         max_seq_no = calc_max_seg_no(pls, c);
 
@@ -1876,9 +1879,8 @@ static void close_demux_for_component(struct representation *pls)
     avformat_close_input(&pls->ctx);
 }
 
-static int reopen_demux_for_component(AVFormatContext *s, struct representation *pls)
-{
-    DASHContext *c = s->priv_data;
+static int reopen_demux_for_component(AVFormatContext *s,
+                                      struct representation *pls) {
     ff_const59 AVInputFormat *in_fmt = NULL;
     AVDictionary  *in_fmt_opts = NULL;
     uint8_t *avio_ctx_buffer  = NULL;
@@ -1905,8 +1907,8 @@ static int reopen_demux_for_component(AVFormatContext *s, struct representation 
         pls->ctx = NULL;
         goto fail;
     }
-    ffio_init_context(&pls->pb, avio_ctx_buffer, INITIAL_BUFFER_SIZE, 0,
-                      pls, read_data, NULL, c->is_live ? NULL : seek_data);
+    ffio_init_context(&pls->pb, avio_ctx_buffer, INITIAL_BUFFER_SIZE, 0, pls,
+                      read_data, NULL, seek_data);
     pls->pb.seekable = 0;
 
     if ((ret = ff_copy_whiteblacklists(pls->ctx, s)) < 0)
@@ -2057,6 +2059,7 @@ static int dash_read_header(AVFormatContext *s)
     int i;
 
     c->interrupt_callback = &s->interrupt_callback;
+    c->header_was_read = false;
 
     if ((ret = save_avio_options(s)) < 0)
         goto fail;
@@ -2163,6 +2166,7 @@ static int dash_read_header(AVFormatContext *s)
         move_metadata(rep->assoc_stream, "id", &rep->id);
         move_metadata(rep->assoc_stream, "language", &rep->lang);
     }
+    c->header_was_read = true;
 
     return 0;
 fail:
@@ -2341,7 +2345,7 @@ static int dash_read_seek(AVFormatContext *s, int stream_index, int64_t timestam
                                            s->streams[stream_index]->time_base.den,
                                            flags & AVSEEK_FLAG_BACKWARD ?
                                            AV_ROUND_DOWN : AV_ROUND_UP);
-    if ((flags & AVSEEK_FLAG_BYTE) || c->is_live)
+    if ((flags & AVSEEK_FLAG_BYTE))
         return AVERROR(ENOSYS);
 
     /* Seek in discarded streams with dry_run=1 to avoid reopening them */
