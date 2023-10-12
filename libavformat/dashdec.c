@@ -158,6 +158,7 @@ typedef struct DASHContext {
     int is_init_section_common_subtitle;
 
     bool header_was_read;
+    bool read_as_static;
 } DASHContext;
 
 static int ishttp(char *url)
@@ -1268,7 +1269,7 @@ static int parse_manifest(AVFormatContext *s, const char *url, AVIOContext *in)
             ret = AVERROR_INVALIDDATA;
             goto cleanup;
         }
-        if (!av_strcasecmp(val, "dynamic"))
+        if (!av_strcasecmp(val, "dynamic") && !c->read_as_static)
             c->is_live = 1;
         else
             c->is_live = 0;
@@ -2388,12 +2389,23 @@ static int dash_probe(const AVProbeData *p)
 #define OFFSET(x) offsetof(DASHContext, x)
 #define FLAGS AV_OPT_FLAG_DECODING_PARAM
 static const AVOption dash_options[] = {
-    {"allowed_extensions", "List of file extensions that dash is allowed to access",
-        OFFSET(allowed_extensions), AV_OPT_TYPE_STRING,
-        {.str = "aac,m4a,m4s,m4v,mov,mp4,webm,ts"},
-        INT_MIN, INT_MAX, FLAGS},
-    {NULL}
-};
+    {"allowed_extensions",
+     "List of file extensions that dash is allowed to access",
+     OFFSET(allowed_extensions),
+     AV_OPT_TYPE_STRING,
+     {.str = "aac,m4a,m4s,m4v,mov,mp4,webm,ts"},
+     INT_MIN,
+     INT_MAX,
+     FLAGS},
+    {"dash_static_mode",
+     "Use static instead of dynamic profile",
+     OFFSET(read_as_static),
+     AV_OPT_TYPE_BOOL,
+     {.i64 = 0},
+     0,
+     1,
+     FLAGS},
+    {NULL}};
 
 static const AVClass dash_class = {
     .class_name = "dash",
