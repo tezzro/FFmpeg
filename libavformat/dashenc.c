@@ -1201,6 +1201,9 @@ static int write_manifest(AVFormatContext *s, int final)
             write_time(out, c->last_duration * c->window_size);
             avio_printf(out, "\"\n");
         }
+        avio_printf(out, "\tmediaPresentationDuration=\"");
+        write_time(out, c->total_duration);
+        avio_printf(out, "\"\n");
     }
     avio_printf(out, "\tmaxSegmentDuration=\"");
     write_time(out, c->max_segment_duration);
