@@ -1365,7 +1365,8 @@ static int parse_manifest(AVFormatContext *s, const char *url, AVIOContext *in)
 cleanup:
         /*free the document */
         xmlFreeDoc(doc);
-        xmlCleanupParser();
+        /// TODO: xmlCleanupParser() is not thread safe and should be called, temporary disabled
+        // xmlCleanupParser();
         xmlFreeNode(mpd_baseurl_node);
     }
 
