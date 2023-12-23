@@ -762,7 +762,7 @@ static int rtp_parse_packet_internal(RTPDemuxContext *s, AVPacket *pkt,
     // now perform timestamp things....
     finalize_packet(s, pkt, timestamp);
     set_pkt_sender_report(s, pkt);
-
+    pkt->timestamp = timestamp;
     return rv;
 }
 
@@ -872,7 +872,6 @@ static int rtp_parse_one_packet(RTPDemuxContext *s, AVPacket *pkt,
         return -1;
     if (RTP_PT_IS_RTCP(buf[1])) {
         const int ret = rtcp_parse_packet(s, buf, len);
-        set_pkt_sender_report(s, pkt);
         return ret;
     }
 
