@@ -1957,7 +1957,7 @@ static void matroska_add_index_entries(MatroskaDemuxContext *matroska)
     index      = index_list->elem;
     if (index_list->nb_elem < 2)
         return;
-    if (index[1].time > 1E14 / matroska->time_scale) {
+    if (index[1].time > 1E17) {
         av_log(matroska->ctx, AV_LOG_WARNING, "Dropping apparently-broken index.\n");
         return;
     }
