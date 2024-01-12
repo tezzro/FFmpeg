@@ -1545,6 +1545,7 @@ static int read_frame_internal(AVFormatContext *s, AVPacket *pkt)
     uint32_t timestamp = 0;
     uint64_t last_rtcp_ntp_time = 0;
     uint32_t last_rtcp_timestamp = 0;
+    int64_t last_rtcp_reception_time = 0;
     uint16_t seq = 0;
     bool synced = false;
 
@@ -1558,6 +1559,7 @@ static int read_frame_internal(AVFormatContext *s, AVPacket *pkt)
         timestamp = pkt->timestamp;
         last_rtcp_ntp_time = pkt->last_rtcp_ntp_time;
         last_rtcp_timestamp = pkt->last_rtcp_timestamp;
+        last_rtcp_reception_time = pkt->last_rtcp_reception_time;
         seq = pkt->seq;
         synced = pkt->synced;
 
@@ -1753,6 +1755,7 @@ FF_ENABLE_DEPRECATION_WARNINGS
     pkt->timestamp = timestamp;
     pkt->last_rtcp_ntp_time = last_rtcp_ntp_time;
     pkt->last_rtcp_timestamp = last_rtcp_timestamp;
+    pkt->last_rtcp_reception_time = last_rtcp_reception_time;
     pkt->seq = seq;
     pkt->synced = synced;
 

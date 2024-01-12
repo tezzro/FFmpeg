@@ -192,6 +192,7 @@ static void set_pkt_sender_report(RTPDemuxContext *s, AVPacket *pkt) {
 
     pkt->seq = s->seq;
     pkt->timestamp = s->timestamp;
+    pkt->last_rtcp_reception_time = s->last_rtcp_reception_time;
 }
 
 static int rtcp_parse_packet(RTPDemuxContext *s, const unsigned char *buf,
@@ -208,7 +209,13 @@ static int rtcp_parse_packet(RTPDemuxContext *s, const unsigned char *buf,
                 return AVERROR_INVALIDDATA;
             }
 
-            s->last_rtcp_reception_time = av_gettime_relative();
+            // s->last_rtcp_reception_time = av_gettime_relative();
+            {
+              struct timespec ts;
+              clock_gettime(CLOCK_REALTIME, &ts);
+              s->last_rtcp_reception_time =
+                  (int64_t)ts.tv_sec * 1000000 + ts.tv_nsec / 1000;
+            }
             s->last_rtcp_ntp_time  = AV_RB64(buf + 8);
             s->last_rtcp_timestamp = AV_RB32(buf + 16);
             if (s->first_rtcp_ntp_time == AV_NOPTS_VALUE) {

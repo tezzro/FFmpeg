@@ -395,6 +395,7 @@ typedef struct AVPacket {
     uint32_t last_rtcp_timestamp;
     uint16_t seq;
     bool synced;
+    int64_t last_rtcp_reception_time;
 
 #if FF_API_CONVERGENCE_DURATION
     /**
